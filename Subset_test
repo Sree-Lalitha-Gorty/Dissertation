@@ -1,0 +1,89 @@
+library(ncdf4)
+
+path = 'C:/Users/Lalitha Gorthi/OneDrive/Desktop/aDissertation/EUPPBenchfiles/'
+
+rfc_data <- nc_open(paste0(path, 'stations_ensemble_reforecasts_surface_austria.nc'))
+
+#variable_names <- names(rfc_data$var)
+#print(variable_names)
+station_id <- ncvar_get(rfc_ds, varid = "station_id")
+time_num <- ncvar_get(rfc_ds, varid = "time")
+time <- as.POSIXct(time_num, origin = '2017-01-01', tz = 'UTC') 
+t2m <- ncvar_get(rfc_ds, varid = "t2m")
+step <- ncvar_get(rfc_ds, varid = "step")
+num <- ncvar_get(rfc_ds, varid = "number")
+altitude <- ncvar_get(rfc_ds, varid = "station_altitude")
+latitude <- ncvar_get(rfc_ds, varid = "station_latitude")
+longitude <- ncvar_get(rfc_ds, varid = "station_longitude")
+year <- ncvar_get(rfc_ds, varid = "year")
+surface <- ncvar_get(rfc_ds, varid = "surface")
+land_usage <- ncvar_get(rfc_ds, varid = "station_land_usage")
+nc_close(rfc_ds)
+dim(t2m)
+num
+
+
+# considering requirements for the subset.
+desired_stations <- 1:4
+desired_years <- 19:20
+desired_ensemble_member <- 1
+desired_lead_time <- 18
+
+# this is the subset
+subset_data <- t2m[desired_lead_time, desired_years, desired_ensemble_member, , desired_stations]
+
+#reshaping it
+subset_data <- array(subset_data, dim = c(length(desired_stations), length(time), 1, length(desired_years), 1))
+
+dim(subset_data)
+length(subset_data)
+
+# Combining year and time dimensions in t2m
+dim_subset <- dim(subset_data)
+combined_dims <- c(dim_subset[1], dim_subset[2] * dim_subset[4], dim_subset[3], dim_subset[5])
+
+subset_data_new <- array(NA, dim = combined_dims)
+
+for (i in 1:dim_subset[1]) {
+  for (j in 1:dim_subset[3]) {
+    subset_data_new[i, , j, ] <- subset_data[i, , j, , ]
+  }
+}
+
+# checking the dimensions 
+dim(subset_data_new)
+t2m_new <- subset_data_new
+dim(t2m_new)
+
+
+#RESHAPING ALL THE VARIABLES TO MATCH T2M. 
+
+t2m_new_dims <- dim(t2m_new)
+prod1 = 418
+
+# Reshape latitude to match t2m dimensions
+latitude_new <- rep(latitude, each = prod1)
+latitude_new <- array(latitude_new, dim = t2m_new_dims)
+
+dim(latitude_new)
+length(latitude_new)
+#head(latitude_new , 5)
+#latitude_new[ ,,,,2 ]
+
+altitude_new <- rep(altitude, each = prod1)
+altitude_new <- array(altitude_new, dim = t2m_new_dims)
+#head(altitude_new, 5)
+dim(altitude_new)
+
+longitude_new <- rep(longitude, each = prod1)
+longitude_new <- array(longitude_new, dim = t2m_new_dims)
+
+land_usage_new <- rep(land_usage, each = prod1)
+land_usage_new <- array(land_usage_new, dim = t2m_new_dims)
+
+dim(land_usage_new)
+
+# Creating a dataframe with ALL the variables of interest.
+train_df <- data.frame(t2m2 = as.vector(t2m_new), latitude2 = as.vector(latitude_new), longitude2 = as.vector(longitude_new), altitude2 = as.vector(altitude_new), land_usage2 = as.vector(land_usage_new))
+head(train_df, 10)
+dim(train_df)
